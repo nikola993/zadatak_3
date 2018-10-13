@@ -131,6 +131,7 @@ function createObstacles(grid, gridSize, start) { // vracanje matrice sa blokovi
             }
         }
     }
+    console.log(grid);
     return grid;
 }
 // Kreiranje matrice
@@ -143,7 +144,7 @@ function createGrid(gridSize) {
             grid[i][j] = 'Empty';
         }
     }
-    grid[endCordinates[0]][endCordinates[1]] = 'Goal';
+    grid[endCordinates[1]][endCordinates[0]] = 'Goal';
     createObstacles(grid, size, startCordinates);
     return grid;
 }
