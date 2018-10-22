@@ -19,6 +19,6 @@
   },
   "scripts": {
     "eslint": "npx eslint -- ./src/.",
-    "node index.js": "node ./src/index.js"
+    "start": "node index.js"
   }
 }

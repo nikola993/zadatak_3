@@ -4,6 +4,25 @@ const startCordinates = [config.startCordinate.x, config.startCordinate.y];
 const endCordinates = [config.endCordinate.x, config.endCordinate.y];
 const size = config.gridSize;
 
+const STATUS = {
+    VALID: 'Valid',
+    INVALID: 'Invalid',
+    BLOCKED: 'Blocked',
+    EMPTY: 'Empty',
+    GOAL: 'Goal',
+    OBSTACLE: 'Obstacle',
+    UNKNOWN: 'Unknown',
+    VISITED: 'Visited',
+    START: 'Start',
+};
+
+const DIRECTIONS = {
+    UP: 'Up',
+    RIGHT: 'Right',
+    DOWN: 'Down',
+    LEFT: 'Left',
+};
+
 // Proveri status lokacije i vrati 'Valid', 'Invalid', 'Blocked', or 'Goal'
 function locationStatus(location, grid) {
     const gridSize = grid.length;
@@ -13,16 +32,16 @@ function locationStatus(location, grid) {
     if (location.distanceFromLeft < 0 || location.distanceFromLeft >= gridSize
         || location.distanceFromTop < 0 || location.distanceFromTop >= gridSize) {
         // lokacija je izvan matrice
-        return 'Invalid';
+        return STATUS.INVALID;
     }
-    if (grid[dft][dfl] === 'Goal') {
-        return 'Goal';
+    if (grid[dft][dfl] === STATUS.GOAL) {
+        return STATUS.GOAL;
     }
-    if (grid[dft][dfl] !== 'Empty') {
+    if (grid[dft][dfl] !== STATUS.EMPTY) {
         // lokacija je ili block ili je vec posecena
-        return 'Blocked';
+        return STATUS.BLOCKED;
     }
-    return 'Valid';
+    return STATUS.VALID;
 }
 
 // Proveri matricu od date lokacije ka datom smeru
@@ -36,13 +55,13 @@ function exploreInDirection(currentLocation, direction, grid) {
     const newCorinates = currentLocation.cordinates.slice();
     newCorinates.push([dfl, dft]);
 
-    if (direction === 'Up') {
+    if (direction === DIRECTIONS.UP) {
         dft -= 1;
-    } else if (direction === 'Right') {
+    } else if (direction === DIRECTIONS.RIGHT) {
         dfl += 1;
-    } else if (direction === 'Down') {
+    } else if (direction === DIRECTIONS.DOWN) {
         dft += 1;
-    } else if (direction === 'Left') {
+    } else if (direction === DIRECTIONS.LEFT) {
         dfl -= 1;
     }
 
@@ -51,13 +70,13 @@ function exploreInDirection(currentLocation, direction, grid) {
         distanceFromLeft: dfl,
         path: newPath,
         cordinates: newCorinates,
-        status: 'Unknown',
+        status: STATUS.UNKNOWN,
     };
     newLocation.status = locationStatus(newLocation, grid);
 
     // Ako je lokacija valida oznaci je kao 'Visited'
-    if (newLocation.status === 'Valid') {
-        grid[newLocation.distanceFromTop][newLocation.distanceFromLeft] = 'Visited';
+    if (newLocation.status === STATUS.VALID) {
+        grid[newLocation.distanceFromTop][newLocation.distanceFromLeft] = STATUS.VISITED;
     }
     return newLocation;
 }
@@ -72,7 +91,7 @@ function findShortestPath(startCoordinates, grid) {
         distanceFromLeft,
         path: [],
         cordinates: [],
-        status: 'Start',
+        status: STATUS.START,
     };
 
     // Kreiranje reda sa pocetnom lokacijom
@@ -82,15 +101,15 @@ function findShortestPath(startCoordinates, grid) {
         // Uzima prvu lokaciju iz reda
         const currentLocation = queue.shift();
 
-        const directions = ['Up', 'Right', 'Down', 'Left'];
+        const directions = [DIRECTIONS.UP, DIRECTIONS.RIGHT, DIRECTIONS.DOWN, DIRECTIONS.LEFT];
         for (let i = 0; i < directions.length; i += 1) {
             const newLocation = exploreInDirection(currentLocation, directions[i], grid);
-            if (newLocation.status === 'Goal') {
+            if (newLocation.status === STATUS.GOAL) {
                 newLocation.cordinates.shift();
                 newLocation.cordinates.push(endCordinates);
                 return newLocation.cordinates;
             }
-            if (newLocation.status === 'Valid') {
+            if (newLocation.status === STATUS.VALID) {
                 queue.push(newLocation);
             }
         }
@@ -100,17 +119,19 @@ function findShortestPath(startCoordinates, grid) {
 }
 
 function revertVisited(grid, gridSize) { // vracanje Visited polja u Empty za sledecu proveru
+    const newGrid = grid;
     for (let i = 0; i < gridSize; i += 1) {
         for (let j = 0; j < gridSize; j += 1) {
-            if (grid[i][j] === 'Visited') {
-                grid[i][j] = 'Empty';
+            if (newGrid[i][j] === STATUS.VISITED) {
+                newGrid[i][j] = STATUS.EMPTY;
             }
         }
     }
-    return grid;
+    return newGrid;
 }
 
 function createObstacles(grid, gridSize, start) { // vracanje matrice sa blokovima
+    let newGrid = grid;
     const numberOfObstacles = config.blocks;
     for (let i = 0; i < numberOfObstacles; i += 1) {
         let blockIsCreated = false;
@@ -119,20 +140,19 @@ function createObstacles(grid, gridSize, start) { // vracanje matrice sa blokovi
             const y = Math.floor(Math.random() * (gridSize));
             const isStartPosition = (start[0] === x && start[1] === y);
 
-            if (grid[x][y] === 'Empty' && !(isStartPosition)) { // ako je random kordinata prazno polje i nije start
-                grid[x][y] = 'Obstacle';
-                const checkPath = findShortestPath(start, grid);
-                revertVisited(grid, gridSize);
+            if (newGrid[x][y] === STATUS.EMPTY && !(isStartPosition)) { // ako je random kordinata prazno polje i nije start
+                newGrid[x][y] = STATUS.OBSTACLE;
+                const checkPath = findShortestPath(start, newGrid);
+                newGrid = revertVisited(newGrid, gridSize);
                 if (!checkPath) { // provera da li postoji putanja
-                    grid[x][y] = 'Empty'; // vraca polje u prazno ako ne postoji putanja
+                    newGrid[x][y] = STATUS.EMPTY; // vraca polje u prazno ako ne postoji putanja
                 } else {
                     blockIsCreated = true;
                 }
             }
         }
     }
-    console.log(grid);
-    return grid;
+    return newGrid;
 }
 // Kreiranje matrice
 
@@ -141,12 +161,14 @@ function createGrid(gridSize) {
     for (let i = 0; i < gridSize; i += 1) {
         grid[i] = [];
         for (let j = 0; j < gridSize; j += 1) {
-            grid[i][j] = 'Empty';
+            grid[i][j] = STATUS.EMPTY;
         }
     }
-    grid[endCordinates[1]][endCordinates[0]] = 'Goal';
-    createObstacles(grid, size, startCordinates);
-    return grid;
+    grid[endCordinates[1]][endCordinates[0]] = STATUS.GOAL;
+    const gridWithObstacles = createObstacles(grid, size, startCordinates);
+    return gridWithObstacles;
 }
+
 const grid = createGrid(size);
+console.log(grid);
 console.log(findShortestPath(startCordinates, grid));
